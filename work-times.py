@@ -12,8 +12,6 @@ days = glob('frames/*_ip')
 
 worktimes = []                     
 
-a = 0
-
 starts = ''
 ends = ''
 total_hours = 0
@@ -52,10 +50,6 @@ for day in days[:-1]:
         total_hours += ((secs(last) - secs(first)) / 3600.)
         total_days += 1
     
-    a += 1
-#    if a == 100:
-#        break
-
 d = 'workdata = [ [' + starts + '] , [' + ends + '] ]'
 open('work-data.js', 'wb').write(d)
 
