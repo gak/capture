@@ -1,28 +1,44 @@
 #!/usr/bin/env python
 
+import os
 from glob import glob
 from os.path import join
 from datetime import datetime
 
-files = []
+def get_frames_for_time(hour, minute):
 
-for day in glob('frames/*'):
+    files = []
 
-    if day.endswith('_ip'):
-        continue
+    for day in glob('frames/*'):
 
-    for frame in glob(join(day, '*jpg')):
-        ts = int(frame.split('.')[0].split('/')[-1])
-        dt = datetime.fromtimestamp(ts)
-
-        if dt.hour < 12:
+        if day.endswith('_ip'):
             continue
 
-        files.append(frame)
-        print frame
+        for frame in glob(join(day, '*jpg')):
+            ts = int(frame.split('.')[0].split('/')[-1])
+            dt = datetime.fromtimestamp(ts)
 
-        break
+            if dt.hour != hour or dt.minute != minute:
+                continue
 
-cmd = 'convert ' + ' '.join(files) + ' -average avg.jpg'
-print cmd
+            files.append(frame)
+            break
+
+    return files
+
+def get_avg_cmd_for_images(files, dest):
+    cmd = 'convert ' + ' '.join(files) + ' -average ' + dest
+    return cmd
+
+for hour in xrange(0, 23):
+    for minute in xrange(0, 60):
+
+        frames = get_frames_for_time(hour, minute)
+        if len(frames) < 3:
+            print 'skip yo', hour, minute
+            continue
+        cmd = get_avg_cmd_for_images(frames, 'avg/%02i%02i.jpg' % (
+            hour, minute))
+        print cmd
+        os.system(cmd)
 
