@@ -5,6 +5,9 @@ from glob import glob
 from os.path import join
 from datetime import datetime
 
+import Image
+import ImageFont, ImageDraw
+
 def get_frames_for_time(hour, minute):
 
     files = []
@@ -30,15 +33,25 @@ def get_avg_cmd_for_images(files, dest):
     cmd = 'convert ' + ' '.join(files) + ' -average ' + dest
     return cmd
 
-for hour in xrange(0, 23):
+for hour in xrange(6, 21):
     for minute in xrange(0, 60):
 
-        frames = get_frames_for_time(hour, minute)
-        if len(frames) < 3:
-            print 'skip yo', hour, minute
+        if hour == 6 and minute < 32:
             continue
-        cmd = get_avg_cmd_for_images(frames, 'avg/%02i%02i.jpg' % (
-            hour, minute))
+
+        frames = get_frames_for_time(hour, minute)
+        if len(frames) < 4:
+            continue
+
+        destfile = 'avg/%02i%02i.png' % (hour, minute)
+        cmd = get_avg_cmd_for_images(frames, destfile)
         print cmd
         os.system(cmd)
 
+        im = Image.open(destfile)
+        font = ImageFont.truetype('Verdana', 12)
+
+        draw = ImageDraw.Draw(im)
+        draw.text((5, 5), '%02i:%02i' % (hour, minute), font=font)
+
+        im.save(destfile)
