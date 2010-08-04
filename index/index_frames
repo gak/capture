@@ -1,0 +1,102 @@
+#!/usr/bin/env python
+'''
+
+    if processed: continue
+    if on_s3 or force: continue
+    upload()
+
+    YYYYMMDD.tgz -> YYYYMMDD.tgz.gpg
+    s3://capture/YYYYMMDD
+
+'''
+import json
+import os
+import sys
+from os.path import join
+from glob import glob
+from datetime import *
+
+from model import *
+import sqlalchemy
+import boto
+
+ROOT = os.path.dirname(os.path.realpath(__file__))
+ROOT = join(ROOT, '..')
+FRAMES = join(ROOT, 'frames')
+os.chdir(FRAMES)
+
+def ts2dt(ts):
+    ts = os.path.split(ts)[1]
+    ts = os.path.splitext(ts)[0]
+    ts = float(ts)
+    return ts
+
+def d2dt(d):
+    return datetime.strptime(d, '%Y%m%d').date()
+
+def day_from_path(d):
+    ts = d2dt(d)
+    try:
+        day = Day.query.filter_by(ts=ts).one()
+    except sqlalchemy.orm.exc.NoResultFound:
+        day = Day(ts=ts)
+        session.commit()
+    return day
+
+def update(f):
+    try:
+        file = Frame.query.filter_by(path=f).one()
+    except sqlalchemy.orm.exc.NoResultFound:
+        ts = ts2dt(f)
+        dt = datetime.fromtimestamp(ts)
+        file = Frame(path=f, ts=dt)
+
+def exe(cmd):
+    print cmd
+    ret = os.system(cmd)
+    if ret:
+        print 'cmd:', cmd
+        print 'failed with exit code:', ret
+        sys.exit(1)
+
+def loop(settings):
+    bucket = get_bucket(settings)
+    directories = glob('*')
+    if not os.path.exists('tmp'):
+        os.mkdir('tmp')
+    for d in directories[:-1]:
+        if d.endswith('_ip'):
+            continue
+        day = day_from_path(d)
+        print day
+        if day.processed:
+            continue
+        if not settings.get('overwrite-s3') and bucket.lookup(d):
+            print d, 'exists, skipping'
+            continue
+        files = glob(join(d, '*jpg'))
+        for f in files:
+            update(unicode(f))
+        exe('tar czf tmp/%s.tgz %s %s_ip' % (d, d, d))
+        exe('echo %s|gpg --batch --yes --passphrase-fd 0 '
+            '-c tmp/%s.tgz' % (settings['gpg-password'], d))
+        print 'uploading...'
+        key = bucket.new_key(d)
+        key.set_contents_from_filename('tmp/%s.tgz.gpg' % d)
+        day.processed = True
+
+def get_bucket(settings):
+    access, secret = settings['access-key'], settings['secret-key']
+    c = boto.connect_s3(str(access), str(secret))
+    bucket = c.get_bucket(settings['bucket'])
+    return bucket
+
+def main():
+    settings = json.load(open(join(ROOT, 'settings.json')))
+    setup_all()
+    create_all()
+    loop(settings)
+
+if __name__ == '__main__':
+    main()
+

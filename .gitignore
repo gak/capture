@@ -1,0 +1,7 @@
+*pyc
+.DS_Store
+frames/
+index/db.sqlite
+index/db.sqlite-journal
+settings.json
+
