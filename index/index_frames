@@ -64,7 +64,7 @@ def loop(settings):
     directories = glob('*')
     if not os.path.exists('tmp'):
         os.mkdir('tmp')
-    for d in directories[:-1]:
+    for d in directories[:-2]:
         if d.endswith('_ip'):
             continue
         day = day_from_path(d)
