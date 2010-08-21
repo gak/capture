@@ -16,8 +16,6 @@ from os.path import join
 from glob import glob
 from datetime import *
 
-from model import *
-import sqlalchemy
 import boto
 
 ROOT = os.path.dirname(os.path.realpath(__file__))
@@ -25,77 +23,108 @@ ROOT = join(ROOT, '..')
 FRAMES = join(ROOT, 'frames')
 os.chdir(FRAMES)
 
-def ts2dt(ts):
-    ts = os.path.split(ts)[1]
-    ts = os.path.splitext(ts)[0]
-    ts = float(ts)
-    return ts
+class Indexer:
 
-def d2dt(d):
-    return datetime.strptime(d, '%Y%m%d').date()
+    def __init__(self, settings):
+        self.settings = settings
+        access = str(self.settings['access-key'])
+        secret = str(self.settings['secret-key'])
+        self.s3 = boto.connect_s3(access, secret)
+        self.bucket = self.s3.get_bucket(settings['bucket'])
+        self.sdb = boto.connect_sdb(access, secret)
+        self.sdb_day = self.get_domain('day')
+        self.sdb_image = self.get_domain('image')
 
-def day_from_path(d):
-    ts = d2dt(d)
-    try:
-        day = Day.query.filter_by(ts=ts).one()
-    except sqlalchemy.orm.exc.NoResultFound:
-        day = Day(ts=ts)
-        session.commit()
-    return day
+    def get_domain(self, d):
+        prefix = str(self.settings['domain-prefix'])
+        domain = self.sdb.get_domain(prefix + d)
+        assert(domain)
+        return domain
 
-def update(f):
-    try:
-        file = Frame.query.filter_by(path=f).one()
-    except sqlalchemy.orm.exc.NoResultFound:
-        ts = ts2dt(f)
-        dt = datetime.fromtimestamp(ts)
-        file = Frame(path=f, ts=dt)
+    @staticmethod
+    def ts2dt(ts):
+        ts = os.path.split(ts)[1]
+        ts = os.path.splitext(ts)[0]
+        ts = float(ts)
+        return ts
 
-def exe(cmd):
-    print cmd
-    ret = os.system(cmd)
-    if ret:
-        print 'cmd:', cmd
-        print 'failed with exit code:', ret
-        sys.exit(1)
+    @staticmethod
+    def d2dt(d):
+        return datetime.strptime(d, '%Y%m%d').date()
 
-def loop(settings):
-    bucket = get_bucket(settings)
-    directories = glob('*')
-    if not os.path.exists('tmp'):
-        os.mkdir('tmp')
-    for d in directories[:-2]:
-        if d.endswith('_ip'):
+    def get_item(self, domain, key):
+        item = domain.get_item(key)
+        if not item:
+            item = domain.new_item(key)
+        return item
+
+    def update_image(self, day, f):
+        ts = Indexer.ts2dt(f)
+        print ts
+        image_item = self.get_item(self.sdb_image, ts)
+        image_item['day'] = day.isoformat()
+        image_item['path'] = f
+        image_item.save()
+        asdf
+        return image_item
+
+    def exe(self, cmd):
+        print cmd
+        ret = os.system(cmd)
+        if ret:
+            print 'cmd:', cmd
+            print 'failed with exit code:', ret
+            sys.exit(1)
+
+    def loop(self):
+        bucket = self.bucket
+        directories = glob('*')
+        if not os.path.exists('tmp'):
+            os.mkdir('tmp')
+        for d in directories:
+
+            if d.endswith('_ip'):
+                continue
+            if d == 'tmp':
+                continue
+
+            day = Indexer.d2dt(d)
+            if day.today() == day:
+                print 'skipping today!'
+                continue
+
+            day_item = self.get_item(self.sdb_day, day.isoformat())
+
+            if day_item.get('uploaded'):
+                print day, 'already uploaded (db), skipping...'
+                continue
+
+            if not self.settings.get('overwrite-s3') and bucket.lookup(d):
+                print day, 'already uploaded (s3), skipping...'
+                day_item['uploaded'] = True
+                day_item.save()
+                continue
+
+            files = glob(join(d, '*jpg'))
+            for f in files:
+                self.update_image(day, unicode(f))
+
+            ddddd
             continue
-        day = day_from_path(d)
-        print day
-        if day.processed:
-            continue
-        if not settings.get('overwrite-s3') and bucket.lookup(d):
-            print d, 'exists, skipping'
-            continue
-        files = glob(join(d, '*jpg'))
-        for f in files:
-            update(unicode(f))
-        exe('tar czf tmp/%s.tgz %s %s_ip' % (d, d, d))
-        exe('echo %s|gpg --batch --yes --passphrase-fd 0 '
-            '-c tmp/%s.tgz' % (settings['gpg-password'], d))
-        print 'uploading...'
-        key = bucket.new_key(d)
-        key.set_contents_from_filename('tmp/%s.tgz.gpg' % d)
-        day.processed = True
 
-def get_bucket(settings):
-    access, secret = settings['access-key'], settings['secret-key']
-    c = boto.connect_s3(str(access), str(secret))
-    bucket = c.get_bucket(settings['bucket'])
-    return bucket
+            exe('tar czf tmp/%s.tgz %s %s_ip' % (d, d, d))
+            exe('echo %s|gpg --batch --yes --passphrase-fd 0 '
+                '-c tmp/%s.tgz' % (self.settings['gpg-password'], d))
+
+            print day, 'uploading...'
+            key = bucket.new_key(d)
+            key.set_contents_from_filename('tmp/%s.tgz.gpg' % d)
+            day_item['uploaded'] = True
+            day_item.save()
 
 def main():
     settings = json.load(open(join(ROOT, 'settings.json')))
-    setup_all()
-    create_all()
-    loop(settings)
+    Indexer(settings).loop()
 
 if __name__ == '__main__':
     main()

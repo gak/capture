@@ -1,0 +1,134 @@
+#!/usr/bin/env python
+import json
+import os
+import sys
+from os.path import join
+from glob import glob
+from datetime import *
+
+import cv
+import Image, ImageChops
+
+ROOT = os.path.dirname(os.path.realpath(__file__))
+ROOT = join(ROOT, '..')
+FRAMES = join(ROOT, 'frames')
+os.chdir(FRAMES)
+
+class FaceToCenter:
+
+    def __init__(self):
+        self.index = 1
+        self.font = cv.InitFont(cv.CV_FONT_HERSHEY_PLAIN, 1, 1)
+        self.face = self.get_haar('haarcascade_frontalface_alt.xml')
+        self.eyes = self.get_haar('haarcascade_eye.xml')
+
+    def get_haar(self, name):
+        path = join(ROOT, 'opencv', 'haarcascades', name)
+        return cv.Load(path)
+
+    def draw_rects(self, img, rect, txt, c=255):
+        x, y, w, h = rect
+        cv.Rectangle(img, (x, y), (x + w, y + h), c)
+        cv.PutText(img, txt, (x, y), self.font, 0xffffff)
+
+    def process_frame(self, path):
+
+        dest = join(ROOT, 'out', '%05d.jpg' % self.index)
+
+        img = cv.LoadImage(path)
+
+        faces = cv.HaarDetectObjects(img, self.face, cv.CreateMemStorage())
+        if len(faces) == 0:
+            print 'no faces',
+            return
+        if len(faces) > 1:
+            print 'multiple faces', len(faces),
+            return
+        face_rect, n = faces[0]
+        self.draw_rects(img, face_rect, 'face', cv.RGB(255, 0, 0))
+
+        eyes = cv.HaarDetectObjects(img, self.eyes, cv.CreateMemStorage())
+        eyes_in_face = 0
+        for eye_rect, n in eyes:
+            good = True
+            if eye_rect[0] < face_rect[0]:
+                good = False
+            if eye_rect[0] > face_rect[0] + face_rect[2]:
+                good = False
+            if eye_rect[1] < face_rect[1]:
+                good = False
+            if eye_rect[1] > face_rect[1] + face_rect[3]:
+                good = False
+            if good:
+                self.draw_rects(img, eye_rect, 'in', cv.RGB(255, 255, 255))
+                eyes_in_face += 1
+            else:
+                self.draw_rects(img, eye_rect, 'out', cv.RGB(0, 0, 0))
+
+        cv.PutText(img, 'eyes: %i' % eyes_in_face, (0, 0), self.font,
+                cv.RGB(255, 255, 255))
+
+        if eyes_in_face < 2:
+            print 'not enough eyes in face',
+            return
+
+        x, y, w, h = face_rect
+
+        print w, h,
+        if w < 100:
+            print 'face too small',
+            return
+
+        dst = cv.CreateImage(cv.GetSize(img), cv.IPL_DEPTH_8U, 3)
+
+        s = 512
+        s2 = s / 2
+        mid = (x + w / 2, y + h / 2)
+        # sub = cv.GetSubRect(img, (x + w / 2 - s2, y + h / 2 - s2, s, s))
+        cv.GetRectSubPix(img, dst, mid)
+        cv.SaveImage(dest, dst)
+
+        #pi = Image.fromstring("RGB", cv.GetSize(img), img.tostring())
+        # ImageChops.offset(x + w / 2, y + h / 2)
+        #pi = pi.crop((x + w / 2 - s2, y + h / 2 - s2, s, s))
+        #pi.save(dest)
+
+        self.index += 1
+
+    def run(self):
+        for d in glob('*'):
+            if d.endswith('_ip'):
+                continue
+            if d.endswith('tmp'):
+                continue
+            day = datetime.strptime(d, '%Y%m%d').date()
+            if day.weekday() >= 5:
+                continue
+
+            for f in glob(join(d, '*jpg')):
+                print f,
+                ts = self.ts2dt(f)
+                try:
+                    ip = open(join(ROOT, 'frames', '%i_ip' % int(d), '%i.ip' %
+                                int(ts)), 'rb').read()
+                except IOError:
+                    print 'no ip file'
+                    continue
+                if ip.find('10.212.') == -1:
+                    print 'wrong ip skip'
+                    continue
+                self.process_frame(f)
+                print
+
+    def ts2dt(self, ts):
+        ts = os.path.split(ts)[1]
+        ts = os.path.splitext(ts)[0]
+        ts = float(ts)
+        return ts
+
+def main():
+    FaceToCenter().run()
+
+if __name__ == '__main__':
+    main()
+
