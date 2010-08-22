@@ -2,6 +2,7 @@
 import json
 import os
 import sys
+import random
 from os.path import join
 from glob import glob
 from datetime import *
@@ -18,7 +19,7 @@ class FaceToCenter:
 
     def __init__(self):
         self.index = 1
-        self.font = cv.InitFont(cv.CV_FONT_HERSHEY_PLAIN, 1, 1)
+        self.font = cv.InitFont(cv.CV_FONT_HERSHEY_PLAIN, 2, 2)
         self.face = self.get_haar('haarcascade_frontalface_alt.xml')
         self.eyes = self.get_haar('haarcascade_eye.xml')
 
@@ -31,7 +32,7 @@ class FaceToCenter:
         cv.Rectangle(img, (x, y), (x + w, y + h), c)
         cv.PutText(img, txt, (x, y), self.font, 0xffffff)
 
-    def process_frame(self, path):
+    def process_frame(self, path, day):
 
         dest = join(ROOT, 'out', '%05d.jpg' % self.index)
 
@@ -45,7 +46,7 @@ class FaceToCenter:
             print 'multiple faces', len(faces),
             return
         face_rect, n = faces[0]
-        self.draw_rects(img, face_rect, 'face', cv.RGB(255, 0, 0))
+        #self.draw_rects(img, face_rect, 'face', cv.RGB(255, 0, 0))
 
         eyes = cv.HaarDetectObjects(img, self.eyes, cv.CreateMemStorage())
         eyes_in_face = 0
@@ -53,20 +54,18 @@ class FaceToCenter:
             good = True
             if eye_rect[0] < face_rect[0]:
                 good = False
-            if eye_rect[0] > face_rect[0] + face_rect[2]:
+            if eye_rect[0] + eye_rect[2] > face_rect[0] + face_rect[2]:
                 good = False
             if eye_rect[1] < face_rect[1]:
                 good = False
-            if eye_rect[1] > face_rect[1] + face_rect[3]:
+            if eye_rect[1] + eye_rect[3] > face_rect[1] + face_rect[3]:
                 good = False
             if good:
-                self.draw_rects(img, eye_rect, 'in', cv.RGB(255, 255, 255))
+                #self.draw_rects(img, eye_rect, 'in', cv.RGB(255, 255, 255))
                 eyes_in_face += 1
             else:
-                self.draw_rects(img, eye_rect, 'out', cv.RGB(0, 0, 0))
-
-        cv.PutText(img, 'eyes: %i' % eyes_in_face, (0, 0), self.font,
-                cv.RGB(255, 255, 255))
+                #self.draw_rects(img, eye_rect, 'out', cv.RGB(0, 0, 0))
+                pass
 
         if eyes_in_face < 2:
             print 'not enough eyes in face',
@@ -84,8 +83,12 @@ class FaceToCenter:
         s = 512
         s2 = s / 2
         mid = (x + w / 2, y + h / 2)
-        # sub = cv.GetSubRect(img, (x + w / 2 - s2, y + h / 2 - s2, s, s))
         cv.GetRectSubPix(img, dst, mid)
+
+
+        w, h = cv.GetSize(dst)
+        cv.PutText(dst, str(day), (10, h - 10), self.font, cv.RGB(255, 255, 255))
+
         cv.SaveImage(dest, dst)
 
         #pi = Image.fromstring("RGB", cv.GetSize(img), img.tostring())
@@ -94,6 +97,8 @@ class FaceToCenter:
         #pi.save(dest)
 
         self.index += 1
+
+        return True
 
     def run(self):
         for d in glob('*'):
@@ -105,7 +110,11 @@ class FaceToCenter:
             if day.weekday() >= 5:
                 continue
 
-            for f in glob(join(d, '*jpg')):
+            images_for_day_left = 10
+
+            files = glob(join(d, '*jpg'))
+            random.shuffle(files)
+            for f in files:
                 print f,
                 ts = self.ts2dt(f)
                 try:
@@ -117,8 +126,15 @@ class FaceToCenter:
                 if ip.find('10.212.') == -1:
                     print 'wrong ip skip'
                     continue
-                self.process_frame(f)
+                if not self.process_frame(f, day):
+                    print
+                    continue
+
                 print
+
+                images_for_day_left -= 1
+                if images_for_day_left <= 0:
+                    break
 
     def ts2dt(self, ts):
         ts = os.path.split(ts)[1]
