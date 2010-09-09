@@ -65,7 +65,6 @@ class Indexer:
         image_item['day'] = day.isoformat()
         image_item['path'] = f
         image_item.save()
-        asdf
         return image_item
 
     def exe(self, cmd):
@@ -106,14 +105,11 @@ class Indexer:
                 continue
 
             files = glob(join(d, '*jpg'))
-            for f in files:
-                self.update_image(day, unicode(f))
+            #for f in files:
+            #    self.update_image(day, unicode(f))
 
-            ddddd
-            continue
-
-            exe('tar czf tmp/%s.tgz %s %s_ip' % (d, d, d))
-            exe('echo %s|gpg --batch --yes --passphrase-fd 0 '
+            self.exe('tar czf tmp/%s.tgz %s %s_ip' % (d, d, d))
+            self.exe('echo %s|gpg --batch --yes --passphrase-fd 0 '
                 '-c tmp/%s.tgz' % (self.settings['gpg-password'], d))
 
             print day, 'uploading...'
