@@ -1,7 +1,8 @@
 #!/bin/bash
 
 DIR="$( cd "$( dirname "$0" )" && pwd )"
-cd $DIR/frames
+cd $DIR
+cd frames
 
 BASE=`date +%Y%m%d`
 D=$BASE
@@ -16,6 +17,6 @@ F2=$BASE.ip
 
 killall -9 imagesnap > /dev/null 2>&1
 
-../imagesnap $D/$F > /dev/null 2>&1
+$DIR/imagesnap $D/$F > /dev/null 2>&1
 /sbin/ifconfig | grep --color=none "inet " | grep -v --color=none 127.0.0.1 > $D2/$F2
 
