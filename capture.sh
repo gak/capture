@@ -16,8 +16,8 @@ Fa=$BASE-a.jpg
 Fb=$BASE-b.jpg
 F2=$BASE.ip
 
-fswebcam --no-banner --png 9 --no-overlay -d /dev/video0 -r 1280x720 -S 20 $D/$Fa
-fswebcam --no-banner --png 9 --no-overlay -d /dev/video1 -r 1280x720 -S 20 $D/$Fb
+fswebcam --no-banner --jpeg 95 --no-overlay -d /dev/video0 -r 1280x720 -S 20 $D/$Fa
+fswebcam --no-banner --jpeg 95 --no-overlay -d /dev/video1 -r 1280x720 -S 20 $D/$Fb
 
 /sbin/ifconfig | grep --color=none "inet " | grep -v --color=none 127.0.0.1 > $D2/$F2
 
