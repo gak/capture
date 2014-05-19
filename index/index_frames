@@ -15,6 +15,7 @@ import sys
 from os.path import join
 from glob import glob
 from datetime import *
+import shutil
 
 import boto
 
@@ -79,6 +80,7 @@ class Indexer:
         bucket = self.bucket
         directories = glob('*')
         if not os.path.exists('tmp'):
+            shutil.rmtree('tmp')
             os.mkdir('tmp')
         for d in directories:
 
@@ -95,7 +97,8 @@ class Indexer:
             day_item = self.get_item(self.sdb_day, day.isoformat())
 
             if day_item.get('uploaded'):
-                print day, 'already uploaded (db), skipping...'
+                print day, 'already uploaded (db), deleting and skipping...'
+                shutil.rmtree(d)
                 continue
 
             if not self.settings.get('overwrite-s3') and bucket.lookup(d):
