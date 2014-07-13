@@ -121,6 +121,8 @@ class Indexer:
             day_item['uploaded'] = True
             day_item.save()
 
+            self.exec('rm tmp/*.tgz')
+
 def main():
     settings = json.load(open(join(ROOT, 'settings.json')))
     Indexer(settings).loop()
