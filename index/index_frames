@@ -79,7 +79,7 @@ class Indexer:
     def loop(self):
         bucket = self.bucket
         directories = glob('*')
-        if not os.path.exists('tmp'):
+        if os.path.exists('tmp'):
             shutil.rmtree('tmp')
             os.mkdir('tmp')
         for d in directories:
@@ -99,6 +99,7 @@ class Indexer:
             if day_item.get('uploaded'):
                 print day, 'already uploaded (db), deleting and skipping...'
                 shutil.rmtree(d)
+                shutil.rmtree(d + '_ip')
                 continue
 
             if not self.settings.get('overwrite-s3') and bucket.lookup(d):
