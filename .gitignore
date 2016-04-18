@@ -4,4 +4,4 @@ frames/
 index/db.sqlite
 index/db.sqlite-journal
 settings.json
-
+.s3cmd
