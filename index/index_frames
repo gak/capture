@@ -30,7 +30,7 @@ class Indexer:
         self.settings = settings
         access = str(self.settings['access-key'])
         secret = str(self.settings['secret-key'])
-        self.s3 = boto.connect_s3(access, secret)
+        self.s3 = boto.connect_s3(access, secret, is_secure=True)
         self.bucket = self.s3.get_bucket(settings['bucket'])
         self.sdb = boto.connect_sdb(access, secret)
         self.sdb_day = self.get_domain('day')
