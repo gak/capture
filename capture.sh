@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/bash -e
 
 DIR="$( cd "$( dirname "$0" )" && pwd )"
 cd $DIR
@@ -19,7 +19,7 @@ F2=$BASE.ip
 #fswebcam --no-banner --jpeg 95 --no-overlay -d /dev/video0 -r 1280x720 -S 20 $D/$Fa
 #fswebcam --no-banner --jpeg 95 --no-overlay -d /dev/video1 -r 1280x720 -S 20 $D/$Fb
 
-../imagesnap $D/$Fa
+/usr/local/bin/imagesnap -v -w 3 $D/$Fa
 
 /sbin/ifconfig | grep --color=none "inet " | grep -v --color=none 127.0.0.1 > $D2/$F2
 
