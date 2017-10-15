@@ -21,7 +21,7 @@ F2=$BASE.ip
 
 # /usr/local/bin/imagesnap -v -w 1 $D/$Fa
 
-ffmpeg -f avfoundation -video_size 1280x720 -framerate 30 -i "0" -vframes 1 $D/$Fa
+/usr/local/bin/ffmpeg -f avfoundation -video_size 1280x720 -framerate 30 -i "0" -vframes 1 $D/$Fa
 
 /sbin/ifconfig | grep --color=none "inet " | grep -v --color=none 127.0.0.1 > $D2/$F2
 
