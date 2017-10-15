@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python
 '''
 
     if processed: continue
@@ -61,7 +61,7 @@ class Indexer:
 
     def update_image(self, day, f):
         ts = Indexer.ts2dt(f)
-        print ts
+        print(ts)
         image_item = self.get_item(self.sdb_image, ts)
         image_item['day'] = day.isoformat()
         image_item['path'] = f
@@ -69,11 +69,11 @@ class Indexer:
         return image_item
 
     def exe(self, cmd):
-        print cmd
+        print(cmd)
         ret = os.system(cmd)
         if ret:
-            print 'cmd:', cmd
-            print 'failed with exit code:', ret
+            print('cmd:', cmd)
+            print('failed with exit code:', ret)
             sys.exit(1)
 
     def loop(self):
@@ -91,19 +91,19 @@ class Indexer:
 
             day = Indexer.d2dt(d)
             if day.today() == day:
-                print 'skipping today!'
+                print('skipping today!')
                 continue
 
             day_item = self.get_item(self.sdb_day, day.isoformat())
 
             if day_item.get('uploaded'):
-                print day, 'already uploaded (db), deleting and skipping...'
+                print(day, 'already uploaded (db), deleting and skipping...')
                 shutil.rmtree(d)
                 shutil.rmtree(d + '_ip')
                 continue
 
             if not self.settings.get('overwrite-s3') and bucket.lookup(d):
-                print day, 'already uploaded (s3), skipping...'
+                print(day, 'already uploaded (s3), skipping...')
                 day_item['uploaded'] = True
                 day_item.save()
                 continue
@@ -116,7 +116,7 @@ class Indexer:
             self.exe('echo %s|gpg --batch --yes --passphrase-fd 0 '
                 '-c tmp/%s.tgz' % (self.settings['gpg-password'], d))
 
-            print day, 'uploading...'
+            print(day, 'uploading...')
             key = bucket.new_key(d)
             key.set_contents_from_filename('tmp/%s.tgz.gpg' % d)
             day_item['uploaded'] = True
